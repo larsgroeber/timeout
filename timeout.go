@@ -1,6 +1,8 @@
 package timeout
 
 import (
+	"errors"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -71,9 +73,14 @@ func New(opts ...Option) gin.HandlerFunc {
 				dst[k] = vv
 			}
 
-			if _, err := tw.ResponseWriter.Write(buffer.Bytes()); err != nil {
+			_, err := tw.ResponseWriter.Write(buffer.Bytes())
+			if errors.Is(err, http.ErrHijacked) {
+				// highjacked connection (for example due to an websocket upgrade)
+				// continue with the original response writer
+			} else if err != nil {
 				panic(err)
 			}
+
 			tw.FreeBuffer()
 			bufPool.Put(buffer)
 
